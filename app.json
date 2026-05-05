@@ -4,7 +4,7 @@
     "slug": "campus-wave-frontend",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.jpg",
     "scheme": "campuswavefrontend",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -38,7 +38,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

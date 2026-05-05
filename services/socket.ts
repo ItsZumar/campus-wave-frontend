@@ -1,0 +1,21 @@
+import { io, type Socket } from "socket.io-client";
+import { BASE_URL } from "./api";
+
+const SERVER_URL = BASE_URL.replace(/\/api$/, "");
+
+let socket: Socket | null = null;
+
+export function getSocket(token: string): Socket {
+  if (!socket) {
+    socket = io(SERVER_URL, {
+      auth: { token },
+      transports: ["websocket"],
+    });
+  }
+  return socket;
+}
+
+export function disconnectSocket(): void {
+  socket?.disconnect();
+  socket = null;
+}
