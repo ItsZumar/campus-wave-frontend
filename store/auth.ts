@@ -1,11 +1,13 @@
 import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import { BASE_URL, type AuthUser } from "@/services/api";
+import { compressImage } from "@/services/compress";
 
 export type SignupData = {
   fullName: string;
   email: string;
   password: string;
+  role: "student" | "teacher";
   department: string;
   semester: string;
   section: string;
@@ -85,9 +87,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   uploadAvatar: async (localUri) => {
     const { user, token } = useAuthStore.getState();
     if (!user || !token) throw new Error("Not authenticated");
+    const compressedUri = await compressImage(localUri);
     const formData = new FormData();
     formData.append("avatar", {
-      uri: localUri,
+      uri: compressedUri,
       type: "image/jpeg",
       name: "avatar.jpg",
     } as any);

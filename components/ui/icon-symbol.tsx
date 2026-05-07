@@ -17,11 +17,13 @@ const MAPPING = {
   'house.fill': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
+  'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right',
   'message.fill': 'chat',
   'person.3.fill': 'group',
   'bell.fill': 'notifications',
   'person.crop.circle.fill': 'account-circle',
+  'megaphone.fill': 'campaign',
 } as IconMapping;
 
 /**

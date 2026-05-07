@@ -14,7 +14,7 @@ type CoursesState = {
   courses: Course[];
   loading: boolean;
   error: string | null;
-  fetchCourses: (token: string, department: string, semester: string) => Promise<void>;
+  fetchCourses: (token: string, department: string, semester?: string) => Promise<void>;
   enrollBulk: (token: string, courseIds: string[]) => Promise<void>;
 };
 
@@ -26,7 +26,8 @@ export const useCoursesStore = create<CoursesState>((set) => ({
   fetchCourses: async (token, department, semester) => {
     set({ loading: true, error: null });
     try {
-      const params = new URLSearchParams({ department, semester });
+      const params = new URLSearchParams({ department });
+      if (semester) params.set("semester", semester);
       let res: Response;
       try {
         res = await fetch(`${BASE_URL}/courses?${params}`, {

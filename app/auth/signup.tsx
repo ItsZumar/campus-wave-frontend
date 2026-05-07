@@ -35,6 +35,7 @@ const SEMESTERS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function SignupScreen() {
   const { signup } = useAuthStore();
+  const [role, setRole] = useState<"student" | "teacher">("student");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,11 +49,13 @@ export default function SignupScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  const isStudent = role === "student";
+
   const handleSubmit = async () => {
     setError(null);
     setLoading(true);
     try {
-      await signup({ fullName, email, password, department, semester, section });
+      await signup({ fullName, email, password, role, department, semester: isStudent ? semester : "", section: isStudent ? section : "" });
       router.replace("/(tabs)");
     } catch (err: any) {
       setError(err.message ?? "Something went wrong. Please try again.");
@@ -61,7 +64,7 @@ export default function SignupScreen() {
     }
   };
 
-  const isFormValid = fullName.trim() && email.trim() && password.trim() && department && semester && section.trim();
+  const isFormValid = fullName.trim() && email.trim() && password.trim() && department && (isStudent ? semester && section.trim() : true);
 
   const inputStyle = (field: string) => [styles.input, focusedField === field && styles.inputFocused];
 
@@ -114,6 +117,34 @@ export default function SignupScreen() {
                 />
               </Field>
 
+              {/* Role */}
+              <Field label="I am a">
+                <View style={styles.roleToggle}>
+                  <TouchableOpacity
+                    style={[styles.roleBtn, isStudent && styles.roleBtnActive]}
+                    onPress={() => {
+                      setRole("student");
+                      setSemester("");
+                      setSection("");
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.roleBtnText, isStudent && styles.roleBtnTextActive]}>Student</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.roleBtn, !isStudent && styles.roleBtnActive]}
+                    onPress={() => {
+                      setRole("teacher");
+                      setSemester("");
+                      setSection("");
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.roleBtnText, !isStudent && styles.roleBtnTextActive]}>Teacher</Text>
+                  </TouchableOpacity>
+                </View>
+              </Field>
+
               {/* Password */}
               <Field label="Password">
                 <View style={styles.passwordWrap}>
@@ -146,36 +177,44 @@ export default function SignupScreen() {
                 </TouchableOpacity>
               </Field>
 
-              {/* Semester + Section */}
-              <View style={styles.row}>
-                <View style={styles.rowItem}>
-                  <Field label="Semester">
-                    <TouchableOpacity style={[styles.input, styles.pickerRow]} onPress={() => setShowSemPicker(true)} activeOpacity={0.75}>
-                      <Text style={semester ? styles.pickerVal : styles.pickerPlaceholder}>{semester ? `Sem ${semester}` : "Select"}</Text>
-                      <Text style={styles.chevron}>⌄</Text>
-                    </TouchableOpacity>
-                  </Field>
-                </View>
+              {/* Semester + Section (students only) */}
+              {isStudent && (
+                <View style={styles.row}>
+                  <View style={styles.rowItem}>
+                    <Field label="Semester">
+                      <TouchableOpacity
+                        style={[styles.input, styles.pickerRow]}
+                        onPress={() => setShowSemPicker(true)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={semester ? styles.pickerVal : styles.pickerPlaceholder}>
+                          {semester ? `Sem ${semester}` : "Select"}
+                        </Text>
+                        <Text style={styles.chevron}>⌄</Text>
+                      </TouchableOpacity>
+                    </Field>
+                  </View>
 
-                <View style={styles.rowGap} />
+                  <View style={styles.rowGap} />
 
-                <View style={styles.rowItem}>
-                  <Field label="Section">
-                    <TextInput
-                      style={inputStyle("section")}
-                      placeholder="A"
-                      placeholderTextColor={ColorPalette.placeholder}
-                      value={section}
-                      onChangeText={(t) => setSection(t.toUpperCase())}
-                      autoCapitalize="characters"
-                      maxLength={3}
-                      returnKeyType="done"
-                      onFocus={() => setFocusedField("section")}
-                      onBlur={() => setFocusedField(null)}
-                    />
-                  </Field>
+                  <View style={styles.rowItem}>
+                    <Field label="Section">
+                      <TextInput
+                        style={inputStyle("section")}
+                        placeholder="A"
+                        placeholderTextColor={ColorPalette.placeholder}
+                        value={section}
+                        onChangeText={(t) => setSection(t.toUpperCase())}
+                        autoCapitalize="characters"
+                        maxLength={3}
+                        returnKeyType="done"
+                        onFocus={() => setFocusedField("section")}
+                        onBlur={() => setFocusedField(null)}
+                      />
+                    </Field>
+                  </View>
                 </View>
-              </View>
+              )}
 
               {/* Error banner */}
               {error && (
@@ -418,6 +457,32 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   errorText: { flex: 1, fontSize: 13, color: "#B91C1C", fontWeight: "500" },
+
+  roleToggle: {
+    flexDirection: "row",
+    borderWidth: 1.5,
+    borderColor: ColorPalette.border,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: ColorPalette.inputBg,
+  },
+  roleBtn: {
+    flex: 1,
+    height: 50,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  roleBtnActive: {
+    backgroundColor: ColorPalette.primary,
+  },
+  roleBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: ColorPalette.textSecondary,
+  },
+  roleBtnTextActive: {
+    color: ColorPalette.white,
+  },
 
   signinRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 4 },
   signinText: { fontSize: 14, color: ColorPalette.textSecondary },

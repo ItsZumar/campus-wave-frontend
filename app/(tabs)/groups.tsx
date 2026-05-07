@@ -1,7 +1,8 @@
 import { type Group } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import { useGroupsStore } from "@/store/groups";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -19,7 +20,6 @@ const TYPE_COLORS: Record<string, string> = {
   course:       "#5C4EE5",
   class:        "#10B981",
   department:   "#F59E0B",
-  semester:     "#3B82F6",
   study:        "#EC4899",
   club:         "#8B5CF6",
   announcement: "#EF4444",
@@ -57,14 +57,16 @@ function metaLine(g: Group): string | null {
   if (g.type === "class")
     return [g.department, g.semester ? `Sem ${g.semester}` : "", g.section].filter(Boolean).join(" · ");
   if (g.type === "department") return g.department ?? null;
-  if (g.type === "semester")   return [g.department, g.semester ? `Semester ${g.semester}` : ""].filter(Boolean).join(" · ");
   if (g.type === "announcement") return "Read-only · Announcements";
   return null;
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function GroupsScreen() {
-  const { token }  = useAuthStore();
+  const { token, user } = useAuthStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
   const {
     groups, discoverList,
     loading, refreshing, discoverLoading,
@@ -92,12 +94,19 @@ export default function GroupsScreen() {
       return list.length ? { title, data: list } : null;
     };
     return [
-      build("semester",   "Semester Group"),
       build("course",     "Course Groups"),
       build("class",      "Class Group"),
       build("department", "Department"),
     ].filter(Boolean) as { title: string; data: Group[] }[];
   }, [groups]);
+
+  const { discoverCourses, discoverCommunities } = useMemo(() => {
+    const STRUCTURED = new Set(["course", "class", "department"]);
+    return {
+      discoverCourses:     discoverList.filter((g) => STRUCTURED.has(g.type)),
+      discoverCommunities: discoverList.filter((g) => !STRUCTURED.has(g.type)),
+    };
+  }, [discoverList]);
 
   const manualSections = useMemo(() => {
     const build = (type: Group["type"], title: string) => {
@@ -176,17 +185,17 @@ export default function GroupsScreen() {
               <>
                 {autoSections.length > 0 && (
                   <>
-                    <SectionDivider label="AUTO-ENROLLED" />
+                    <SectionDivider label="AUTO-ENROLLED" styles={styles} />
                     {autoSections.map((s) => (
-                      <GroupSection key={s.title} title={s.title} data={s.data} />
+                      <GroupSection key={s.title} title={s.title} data={s.data} styles={styles} C={C} />
                     ))}
                   </>
                 )}
                 {manualSections.length > 0 && (
                   <>
-                    <SectionDivider label="MY COMMUNITIES" />
+                    <SectionDivider label="MY COMMUNITIES" styles={styles} />
                     {manualSections.map((s) => (
-                      <GroupSection key={s.title} title={s.title} data={s.data} />
+                      <GroupSection key={s.title} title={s.title} data={s.data} styles={styles} C={C} />
                     ))}
                   </>
                 )}
@@ -221,11 +230,28 @@ export default function GroupsScreen() {
                 </Text>
               </View>
             ) : (
-              <View style={styles.discoverList}>
-                {discoverList.map((g) => (
-                  <DiscoverCard key={g._id} group={g} token={token!} />
-                ))}
-              </View>
+              <>
+                {discoverCourses.length > 0 && (
+                  <>
+                    <SectionDivider label={`COURSES & CLASSES · ${user?.department?.toUpperCase() ?? ""}`} styles={styles} />
+                    <View style={styles.discoverList}>
+                      {discoverCourses.map((g) => (
+                        <DiscoverCard key={g._id} group={g} token={token!} styles={styles} C={C} />
+                      ))}
+                    </View>
+                  </>
+                )}
+                {discoverCommunities.length > 0 && (
+                  <>
+                    <SectionDivider label="COMMUNITIES" styles={styles} />
+                    <View style={styles.discoverList}>
+                      {discoverCommunities.map((g) => (
+                        <DiscoverCard key={g._id} group={g} token={token!} styles={styles} C={C} />
+                      ))}
+                    </View>
+                  </>
+                )}
+              </>
             )}
             <View style={{ height: 24 }} />
           </ScrollView>
@@ -236,7 +262,7 @@ export default function GroupsScreen() {
 }
 
 // ─── Section divider ──────────────────────────────────────────────────────────
-function SectionDivider({ label }: { label: string }) {
+function SectionDivider({ label, styles }: { label: string; styles: StylesType }) {
   return (
     <View style={styles.sectionDivider}>
       <View style={styles.sectionLine} />
@@ -247,7 +273,7 @@ function SectionDivider({ label }: { label: string }) {
 }
 
 // ─── Group section block ──────────────────────────────────────────────────────
-function GroupSection({ title, data }: { title: string; data: Group[] }) {
+function GroupSection({ title, data, styles, C }: { title: string; data: Group[]; styles: StylesType; C: typeof ColorPalette }) {
   return (
     <View style={styles.sectionBlock}>
       <View style={styles.sectionLabelRow}>
@@ -263,6 +289,8 @@ function GroupSection({ title, data }: { title: string; data: Group[] }) {
             group={g}
             lastRow={i === data.length - 1}
             onPress={() => router.push(`/chat/${g._id}?name=${encodeURIComponent(g.name)}` as any)}
+            styles={styles}
+            C={C}
           />
         ))}
       </View>
@@ -271,7 +299,7 @@ function GroupSection({ title, data }: { title: string; data: Group[] }) {
 }
 
 // ─── Group card ────────────────────────────────────────────────────────────────
-function GroupCard({ group, lastRow, onPress }: { group: Group; lastRow: boolean; onPress: () => void }) {
+function GroupCard({ group, lastRow, onPress, styles, C }: { group: Group; lastRow: boolean; onPress: () => void; styles: StylesType; C: typeof ColorPalette }) {
   const color = TYPE_COLORS[group.type] ?? C.primary;
   const meta  = metaLine(group);
 
@@ -300,11 +328,12 @@ function GroupCard({ group, lastRow, onPress }: { group: Group; lastRow: boolean
 }
 
 // ─── Discover card ─────────────────────────────────────────────────────────────
-function DiscoverCard({ group, token }: { group: Group; token: string }) {
+function DiscoverCard({ group, token, styles, C }: { group: Group; token: string; styles: StylesType; C: typeof ColorPalette }) {
   const { joinGroup } = useGroupsStore();
   const [joining, setJoining] = useState(false);
   const color = TYPE_COLORS[group.type] ?? C.primary;
   const badge = TYPE_BADGE[group.type] ?? group.type;
+  const meta  = metaLine(group);
 
   const handleJoin = async () => {
     setJoining(true);
@@ -332,6 +361,7 @@ function DiscoverCard({ group, token }: { group: Group; token: string }) {
         {group.description ? (
           <Text style={styles.discoverDesc} numberOfLines={2}>{group.description}</Text>
         ) : null}
+        {meta ? <Text style={styles.discoverMeta}>{meta}</Text> : null}
         <View style={styles.discoverFooter}>
           {group.memberCount !== undefined && (
             <Text style={styles.memberCount}>{group.memberCount} members</Text>
@@ -354,7 +384,10 @@ function DiscoverCard({ group, token }: { group: Group; token: string }) {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+type StylesType = ReturnType<typeof makeStyles>;
+
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe:        { flex: 1, backgroundColor: C.bg },
   scroll:      { paddingBottom: 16 },
   scrollEmpty: { flex: 1 },
@@ -438,7 +471,8 @@ const styles = StyleSheet.create({
   discoverName:       { flex: 1, fontSize: 15, fontWeight: "700", color: C.textPrimary },
   typeBadge:          { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
   typeBadgeText:      { fontSize: 11, fontWeight: "700" },
-  discoverDesc:       { fontSize: 13, color: C.textSecondary, lineHeight: 18, marginBottom: 8 },
+  discoverDesc:       { fontSize: 13, color: C.textSecondary, lineHeight: 18, marginBottom: 4 },
+  discoverMeta:       { fontSize: 11, color: C.placeholder, marginBottom: 8 },
   discoverFooter:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   memberCount:        { fontSize: 12, color: C.placeholder },
   joinBtn:            { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: C.primary, borderRadius: 12, minWidth: 64, alignItems: "center" },
@@ -452,4 +486,5 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 13, color: C.textSecondary, textAlign: "center", lineHeight: 20 },
   retryBtn:      { marginTop: 4, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: C.primary, borderRadius: 12 },
   retryText:     { color: "#fff", fontWeight: "700", fontSize: 14 },
-});
+  });
+}

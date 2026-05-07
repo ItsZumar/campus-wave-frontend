@@ -1,7 +1,8 @@
 import { useAuthStore } from "@/store/auth";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -19,6 +20,9 @@ const CAMPUS_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.(edu|edu\.pk|ac\.pk)$/i;
 
 export default function LoginScreen() {
   const { login } = useAuthStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -159,7 +163,8 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
   scroll: { paddingHorizontal: 20, paddingBottom: 48 },
@@ -286,4 +291,5 @@ const styles = StyleSheet.create({
   signupRow: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   signupText: { fontSize: 14, color: C.textSecondary },
   signupLink: { fontSize: 14, fontWeight: "700", color: C.primary },
-});
+  });
+}

@@ -1,8 +1,9 @@
 import { useAuthStore } from "@/store/auth";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -35,6 +36,9 @@ const SEMESTERS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
 export default function EditProfileScreen() {
   const { user, updateProfile, uploadAvatar } = useAuthStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
 
   const [name, setName]             = useState(user?.fullName ?? "");
   const [department, setDepartment] = useState(user?.department ?? "");
@@ -47,13 +51,14 @@ export default function EditProfileScreen() {
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState<string | null>(null);
 
+  const isTeacher = user?.role === "teacher";
   const avatarUri = pickedImage ?? user?.profileImage ?? null;
 
   const isDirty =
     name.trim() !== (user?.fullName ?? "") ||
     department !== (user?.department ?? "") ||
-    semester !== (user?.semester ?? "") ||
-    section !== (user?.section ?? "") ||
+    (!isTeacher && semester !== (user?.semester ?? "")) ||
+    (!isTeacher && section !== (user?.section ?? "")) ||
     pickedImage !== null;
 
   const pickImage = async () => {
@@ -80,7 +85,7 @@ export default function EditProfileScreen() {
       if (pickedImage) {
         await uploadAvatar(pickedImage);
       }
-      await updateProfile({ fullName: name.trim(), department, semester, section });
+      await updateProfile({ fullName: name.trim(), department, semester: isTeacher ? "" : semester, section: isTeacher ? "" : section });
       router.back();
     } catch (err: any) {
       setError(err.message ?? "Failed to save. Please try again.");
@@ -163,7 +168,7 @@ export default function EditProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Personal</Text>
             <View style={styles.card}>
-              <Field label="Full Name">
+              <Field label="Full Name" styles={styles}>
                 <TextInput
                   style={inputStyle("name")}
                   value={name}
@@ -183,7 +188,7 @@ export default function EditProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Academic</Text>
             <View style={styles.card}>
-              <Field label="Department">
+              <Field label="Department" styles={styles}>
                 <TouchableOpacity
                   style={[styles.input, styles.pickerRow]}
                   onPress={() => setShowDeptPicker(true)}
@@ -196,34 +201,37 @@ export default function EditProfileScreen() {
                 </TouchableOpacity>
               </Field>
 
-              <CardDivider />
-
-              <Field label="Semester & Section">
-                <View style={styles.row}>
-                  <TouchableOpacity
-                    style={[styles.input, styles.pickerRow, styles.flex]}
-                    onPress={() => setShowSemPicker(true)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={semester ? styles.pickerVal : styles.pickerPlaceholder}>
-                      {semester ? `Semester ${semester}` : "Select"}
-                    </Text>
-                    <Text style={styles.chevron}>⌄</Text>
-                  </TouchableOpacity>
-                  <View style={styles.rowGap} />
-                  <TextInput
-                    style={[inputStyle("section"), styles.sectionInput]}
-                    value={section}
-                    onChangeText={(t) => setSection(t.toUpperCase())}
-                    placeholder="A"
-                    placeholderTextColor={C.placeholder}
-                    autoCapitalize="characters"
-                    maxLength={3}
-                    onFocus={() => setFocusedField("section")}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                </View>
-              </Field>
+              {!isTeacher && (
+                <>
+                  <CardDivider styles={styles} />
+                  <Field label="Semester & Section" styles={styles}>
+                    <View style={styles.row}>
+                      <TouchableOpacity
+                        style={[styles.input, styles.pickerRow, styles.flex]}
+                        onPress={() => setShowSemPicker(true)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={semester ? styles.pickerVal : styles.pickerPlaceholder}>
+                          {semester ? `Semester ${semester}` : "Select"}
+                        </Text>
+                        <Text style={styles.chevron}>⌄</Text>
+                      </TouchableOpacity>
+                      <View style={styles.rowGap} />
+                      <TextInput
+                        style={[inputStyle("section"), styles.sectionInput]}
+                        value={section}
+                        onChangeText={(t) => setSection(t.toUpperCase())}
+                        placeholder="A"
+                        placeholderTextColor={C.placeholder}
+                        autoCapitalize="characters"
+                        maxLength={3}
+                        onFocus={() => setFocusedField("section")}
+                        onBlur={() => setFocusedField(null)}
+                      />
+                    </View>
+                  </Field>
+                </>
+              )}
             </View>
           </View>
 
@@ -231,7 +239,7 @@ export default function EditProfileScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Account</Text>
             <View style={styles.card}>
-              <Field label="University Email">
+              <Field label="University Email" styles={styles}>
                 <View style={styles.readonlyRow}>
                   <Text style={styles.readonlyValue}>{user?.email ?? "—"}</Text>
                   <View style={styles.lockedBadge}>
@@ -252,6 +260,7 @@ export default function EditProfileScreen() {
         selected={department}
         onSelect={(v) => { setDepartment(v); setShowDeptPicker(false); }}
         onClose={() => setShowDeptPicker(false)}
+        styles={styles}
       />
 
       {/* Semester picker */}
@@ -263,13 +272,14 @@ export default function EditProfileScreen() {
         onSelect={(v) => { setSemester(v); setShowSemPicker(false); }}
         onClose={() => setShowSemPicker(false)}
         renderOption={(opt) => `Semester ${opt}`}
+        styles={styles}
       />
     </SafeAreaView>
   );
 }
 
 // ─── Field wrapper ────────────────────────────────────────────────────────────
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, styles }: { label: string; children: React.ReactNode; styles: StylesType }) {
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -278,7 +288,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function CardDivider() {
+function CardDivider({ styles }: { styles: StylesType }) {
   return <View style={styles.cardDivider} />;
 }
 
@@ -291,9 +301,10 @@ type PickerModalProps = {
   onSelect: (v: string) => void;
   onClose: () => void;
   renderOption?: (opt: string) => string;
+  styles: StylesType;
 };
 
-function PickerModal({ visible, title, options, selected, onSelect, onClose, renderOption }: PickerModalProps) {
+function PickerModal({ visible, title, options, selected, onSelect, onClose, renderOption, styles }: PickerModalProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -329,7 +340,10 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose, ren
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+type StylesType = ReturnType<typeof makeStyles>;
+
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
   flex: { flex: 1 },
   scroll: { paddingBottom: 48 },
@@ -503,4 +517,5 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   modalCheckText: { color: C.white, fontSize: 12, fontWeight: "700" },
-});
+  });
+}

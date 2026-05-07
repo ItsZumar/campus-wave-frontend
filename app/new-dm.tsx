@@ -1,9 +1,10 @@
 import { useAuthStore } from "@/store/auth";
 import { useGroupsStore } from "@/store/groups";
 import { BASE_URL, type User } from "@/services/api";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -35,6 +36,9 @@ function avatarColor(id: string): string {
 export default function NewDMScreen() {
   const { user, token }       = useAuthStore();
   const { findOrCreateDM }    = useGroupsStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
   const [users, setUsers]     = useState<User[]>([]);
   const [query, setQuery]     = useState("");
   const [loading, setLoading] = useState(true);
@@ -162,7 +166,8 @@ export default function NewDMScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe:    { flex: 1, backgroundColor: C.bg },
 
   header: {
@@ -215,4 +220,5 @@ const styles = StyleSheet.create({
   center:     { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 15, fontWeight: "600", color: C.textSecondary },
-});
+  });
+}

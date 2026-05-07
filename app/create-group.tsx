@@ -1,8 +1,9 @@
 import { useAuthStore } from "@/store/auth";
 import { useGroupsStore } from "@/store/groups";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -26,6 +27,9 @@ const TYPE_OPTIONS: { type: GroupType; label: string; desc: string; color: strin
 export default function CreateGroupScreen() {
   const { user, token }      = useAuthStore();
   const { createGroup }      = useGroupsStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
   const [name, setName]      = useState("");
   const [desc, setDesc]      = useState("");
   const [type, setType]      = useState<GroupType>("study");
@@ -167,7 +171,8 @@ export default function CreateGroupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe:    { flex: 1, backgroundColor: C.bg },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 },
 
@@ -235,4 +240,5 @@ const styles = StyleSheet.create({
   },
   createBtnDisabled: { opacity: 0.4, shadowOpacity: 0 },
   createBtnText:     { color: "#fff", fontSize: 16, fontWeight: "700" },
-});
+  });
+}

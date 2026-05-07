@@ -19,6 +19,7 @@ type GroupsState = {
   refresh: (token: string) => Promise<void>;
   fetchDiscover: (token: string) => Promise<void>;
   joinGroup: (token: string, groupId: string) => Promise<void>;
+  joinViaInvite: (token: string, groupId: string) => Promise<void>;
   leaveGroup: (token: string, groupId: string) => Promise<void>;
   createGroup: (token: string, data: CreateGroupData) => Promise<Group>;
   findOrCreateDM: (token: string, targetUserId: string) => Promise<Group>;
@@ -104,6 +105,25 @@ export const useGroupsStore = create<GroupsState>((set, get) => ({
     const data = await res.json();
     if (!res.ok) throw new Error(data.message ?? "Failed to join group");
     // refresh both lists
+    const [myGroups] = await Promise.all([
+      loadMyGroups(token),
+      get().fetchDiscover(token),
+    ]);
+    set({ groups: myGroups });
+  },
+
+  joinViaInvite: async (token, groupId) => {
+    let res: Response;
+    try {
+      res = await fetch(`${BASE_URL}/groups/${groupId}/join-via-invite`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      throw new Error("Cannot reach the server.");
+    }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message ?? "Failed to join group");
     const [myGroups] = await Promise.all([
       loadMyGroups(token),
       get().fetchDiscover(token),
