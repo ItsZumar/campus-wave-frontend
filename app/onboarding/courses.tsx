@@ -24,7 +24,7 @@ export default function CourseSelectionScreen() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const isTeacher = user?.role === "teacher" || user?.role === "admin";
+  const isTeacher = user?.role === "teacher";
 
   useEffect(() => {
     if (token && user?.department) {
@@ -52,6 +52,38 @@ export default function CourseSelectionScreen() {
       setSaving(false);
     }
   };
+
+  if (isTeacher) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome, Teacher!</Text>
+          <Text style={styles.subtitle}>Your courses will be assigned by an admin.</Text>
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.stateEmoji}>📋</Text>
+          <Text style={styles.emptyTitle}>Courses Assigned by Admin</Text>
+          <Text style={styles.emptySubtitle}>
+            An admin will assign your department and courses. You can start using the app right now.
+          </Text>
+        </View>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.confirmBtn}
+            onPress={() => handleConfirm(true)}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.confirmText}>Continue to App</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>

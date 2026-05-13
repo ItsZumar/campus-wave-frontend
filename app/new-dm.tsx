@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -145,9 +146,13 @@ export default function NewDMScreen() {
                 activeOpacity={0.7}
                 disabled={!!opening}
               >
-                <View style={[styles.avatar, { backgroundColor: avatarColor(item._id) }]}>
-                  <Text style={styles.avatarText}>{initials(item.fullName)}</Text>
-                </View>
+                {item.profileImage ? (
+                  <Image source={{ uri: item.profileImage }} style={styles.avatarImage} />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: avatarColor(item._id) }]}>
+                    <Text style={styles.avatarText}>{initials(item.fullName)}</Text>
+                  </View>
+                )}
                 <View style={styles.rowBody}>
                   <Text style={styles.name} numberOfLines={1}>{item.fullName}</Text>
                   <Text style={styles.meta} numberOfLines={1}>
@@ -212,6 +217,7 @@ function makeStyles(C: typeof ColorPalette) {
     width: 48, height: 48, borderRadius: 24,
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
+  avatarImage: { width: 48, height: 48, borderRadius: 24, flexShrink: 0 },
   avatarText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   rowBody:    { flex: 1 },
   name:       { fontSize: 15, fontWeight: "600", color: C.textPrimary, marginBottom: 2 },

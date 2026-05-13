@@ -1,5 +1,6 @@
 import { NotifRow } from "@/components/NotifRow";
 import { type AppNotification, useNotificationsStore } from "@/store/notifications";
+import { useGroupsStore } from "@/store/groups";
 import { useThemeStore } from "@/store/theme";
 import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
@@ -31,6 +32,7 @@ function buildSections(notifications: AppNotification[]): Section[] {
 
 export default function NotificationsScreen() {
   const { notifications, loading, fetch, markRead, markAllRead, remove } = useNotificationsStore();
+  const { groups } = useGroupsStore();
   const { isDark } = useThemeStore();
   const C = isDark ? DarkColorPalette : ColorPalette;
   const styles = useMemo(() => makeStyles(C), [isDark]);
@@ -87,7 +89,11 @@ export default function NotificationsScreen() {
               onPress={() => {
                 markRead(item._id);
                 if (item.data?.groupId) {
-                  router.push(`/chat/${item.data.groupId}?name=${encodeURIComponent(item.data.groupName ?? "Chat")}` as any);
+                  const group = groups.find((g) => g._id === item.data!.groupId);
+                  const displayName = group?.type === "dm"
+                    ? (group.otherUser?.fullName ?? "Direct Message")
+                    : (item.data.groupName ?? "Chat");
+                  router.push(`/chat/${item.data.groupId}?name=${encodeURIComponent(displayName)}` as any);
                 }
               }}
               onLongPress={() => remove(item._id)}

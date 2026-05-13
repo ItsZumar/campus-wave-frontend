@@ -9,7 +9,7 @@ import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, RefreshControl, SectionList, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ChatItem = {
@@ -123,7 +123,6 @@ export default function ChatsScreen() {
   const C = isDark ? DarkColorPalette : ColorPalette;
   const styles = useMemo(() => makeStyles(C), [isDark]);
   const [query, setQuery] = useState("");
-  const { bottom: bottomInset } = useSafeAreaInsets();
 
   const skelAnim = useRef(new Animated.Value(0.35)).current;
   useEffect(() => {
@@ -149,12 +148,17 @@ export default function ChatsScreen() {
 
   const sections = useMemo<ChatSection[]>(() => {
     const q = query.trim().toLowerCase();
-    const matches = (g: Group) =>
-      !q ||
-      g.name.toLowerCase().includes(q) ||
-      (g.description ?? "").toLowerCase().includes(q) ||
-      (g.department ?? "").toLowerCase().includes(q) ||
-      (g.section ?? "").toLowerCase().includes(q);
+    const matches = (g: Group) => {
+      if (!q) return true;
+      const displayName = g.type === "dm" ? (g.otherUser?.fullName ?? "") : g.name;
+      return (
+        displayName.toLowerCase().includes(q) ||
+        g.name.toLowerCase().includes(q) ||
+        (g.description ?? "").toLowerCase().includes(q) ||
+        (g.department ?? "").toLowerCase().includes(q) ||
+        (g.section ?? "").toLowerCase().includes(q)
+      );
+    };
 
     const build = (type: Group["type"], title: string): ChatSection | null => {
       const filtered = groups.filter((g) => g.type === type && (type === "dm" || !g.autoEnrolled) && matches(g));
@@ -245,9 +249,7 @@ export default function ChatsScreen() {
           </View>
           <Text style={styles.stateTitle}>{query ? "No results found" : "No conversations yet"}</Text>
           <Text style={styles.stateSubtitle}>
-            {query
-              ? `Nothing matched "${query}". Try a different keyword.`
-              : "You'll be added to groups automatically once courses are set up."}
+            {query ? `Nothing matched "${query}". Try a different keyword.` : "Start a new conversation."}
           </Text>
           {query.length > 0 && (
             <TouchableOpacity style={styles.actionBtn} onPress={() => setQuery("")}>

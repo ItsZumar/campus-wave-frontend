@@ -1,3 +1,4 @@
+import { ReportModal } from "@/components/ReportModal";
 import { BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore } from "@/store/theme";
@@ -52,9 +53,10 @@ export default function UserProfileScreen() {
   const { isDark } = useThemeStore();
   const C = isDark ? DarkColorPalette : ColorPalette;
   const styles = useMemo(() => makeStyles(C), [isDark]);
-  const [user, setUser]       = useState<UserDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string | null>(null);
+  const [user, setUser]         = useState<UserDetail | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (!userId || !token) return;
@@ -102,11 +104,20 @@ export default function UserProfileScreen() {
           </TouchableOpacity>
         </View>
       ) : user ? (
-        user.role === "teacher" ? (
-          <TeacherProfile user={user} styles={styles} C={C} />
-        ) : (
-          <StudentProfile user={user} styles={styles} C={C} />
-        )
+        <>
+          {user.role === "teacher" ? (
+            <TeacherProfile user={user} styles={styles} C={C} onReport={() => setShowReport(true)} />
+          ) : (
+            <StudentProfile user={user} styles={styles} C={C} onReport={() => setShowReport(true)} />
+          )}
+          <ReportModal
+            visible={showReport}
+            onClose={() => setShowReport(false)}
+            type="user"
+            reportedUserId={user._id}
+            reportedUserName={user.fullName}
+          />
+        </>
       ) : null}
     </SafeAreaView>
   );
@@ -114,7 +125,7 @@ export default function UserProfileScreen() {
 
 type StylesType = ReturnType<typeof makeStyles>;
 
-function StudentProfile({ user, styles, C }: { user: UserDetail; styles: StylesType; C: typeof ColorPalette }) {
+function StudentProfile({ user, styles, C, onReport }: { user: UserDetail; styles: StylesType; C: typeof ColorPalette; onReport: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.avatarWrap}>
@@ -138,11 +149,15 @@ function StudentProfile({ user, styles, C }: { user: UserDetail; styles: StylesT
         {user.semester   && <InfoRow icon="📅" label="Semester"   value={`Semester ${user.semester}`} styles={styles} />}
         {user.section    && <InfoRow icon="🔖" label="Section"    value={`Section ${user.section}`} styles={styles} />}
       </View>
+
+      <TouchableOpacity style={styles.reportBtn} onPress={onReport}>
+        <Text style={styles.reportBtnText}>🚩 Report User</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
-function TeacherProfile({ user, styles }: { user: UserDetail; styles: StylesType; C: typeof ColorPalette }) {
+function TeacherProfile({ user, styles, onReport }: { user: UserDetail; styles: StylesType; C: typeof ColorPalette; onReport: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.teacherScroll} showsVerticalScrollIndicator={false}>
       {/* Banner */}
@@ -182,6 +197,10 @@ function TeacherProfile({ user, styles }: { user: UserDetail; styles: StylesType
             <InfoRow icon="🎓" label="Faculty / Department" value={user.department} styles={styles} />
           )}
         </View>
+
+        <TouchableOpacity style={styles.reportBtn} onPress={onReport}>
+          <Text style={styles.reportBtnText}>🚩 Report User</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -317,5 +336,13 @@ function makeStyles(C: typeof ColorPalette) {
     backgroundColor: C.primaryLight, borderRadius: 20,
   },
   teacherDeptText: { fontSize: 13, fontWeight: "600", color: C.primary },
+
+  reportBtn: {
+    width: "100%", marginTop: 24,
+    paddingVertical: 13, borderRadius: 14,
+    borderWidth: 1, borderColor: "#EF444440",
+    backgroundColor: "#EF444410", alignItems: "center",
+  },
+  reportBtnText: { fontSize: 14, fontWeight: "600", color: "#EF4444" },
   });
 }

@@ -1,4 +1,5 @@
-import { type Announcement, type AnnouncementCategory, useAnnouncementsStore } from "@/store/announcements";
+import { type Announcement, type AnnouncementCategory, type CreateAnnouncementPayload, useAnnouncementsStore } from "@/store/announcements";
+import { useAdminStore } from "@/store/admin";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore } from "@/store/theme";
 import { ColorPalette, DarkColorPalette } from "@/styles";
@@ -28,10 +29,13 @@ const CATEGORY_META: Record<AnnouncementCategory, { label: string; icon: string;
   Timetable: { label: "Timetable", icon: "📅", color: "#0EA5E9", bg: "#E0F2FE" },
   Exams:     { label: "Exam Alert", icon: "📝", color: "#F59E0B", bg: "#FEF3C7" },
   Notices:   { label: "Notice",     icon: "📢", color: "#EF4444", bg: "#FEE2E2" },
+  Holiday:   { label: "Holiday",    icon: "🏖️", color: "#10B981", bg: "#D1FAE5" },
+  Emergency: { label: "Emergency",  icon: "🚨", color: "#DC2626", bg: "#FEE2E2" },
+  Event:     { label: "Event",      icon: "🎉", color: "#8B5CF6", bg: "#EDE9FE" },
 };
 
-const FILTERS: FilterCategory[] = ["All", "Timetable", "Exams", "Notices"];
-const CATEGORIES: AnnouncementCategory[] = ["Timetable", "Exams", "Notices"];
+const FILTERS: FilterCategory[] = ["All", "Timetable", "Exams", "Notices", "Holiday", "Emergency", "Event"];
+const CATEGORIES: AnnouncementCategory[] = ["Timetable", "Exams", "Notices", "Holiday", "Emergency", "Event"];
 
 function initials(name: string): string {
   return name
@@ -86,7 +90,8 @@ export default function AnnouncementsScreen() {
   }, [announcements, activeFilter]);
 
   const handleLongPress = useCallback((item: Announcement) => {
-    if (!isTeacher || item.author._id !== user?.id) return;
+    const canManageItem = isTeacher && (user?.role === "admin" || item.author._id === user?.id);
+    if (!canManageItem) return;
     const pinLabel = item.pinned ? "Unpin" : "Pin";
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -161,7 +166,7 @@ export default function AnnouncementsScreen() {
           renderItem={({ item }) => (
             <AnnouncementCard
               item={item}
-              canManage={isTeacher && item.author._id === user?.id}
+              canManage={isTeacher && (user?.role === "admin" || item.author._id === user?.id)}
               onLongPress={() => handleLongPress(item)}
               styles={styles}
             />
@@ -231,10 +236,18 @@ function AnnouncementCard({
         </View>
       </View>
 
-      {/* Category badge */}
-      <View style={[styles.categoryBadge, { backgroundColor: meta.bg }]}>
-        <Text style={styles.categoryIcon}>{meta.icon}</Text>
-        <Text style={[styles.categoryLabel, { color: meta.color }]}>{meta.label}</Text>
+      {/* Badges row */}
+      <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+        <View style={[styles.categoryBadge, { backgroundColor: meta.bg }]}>
+          <Text style={styles.categoryIcon}>{meta.icon}</Text>
+          <Text style={[styles.categoryLabel, { color: meta.color }]}>{meta.label}</Text>
+        </View>
+        {item.scope === "campus" && (
+          <View style={[styles.categoryBadge, { backgroundColor: "#F0EEFF" }]}>
+            <Text style={styles.categoryIcon}>🌐</Text>
+            <Text style={[styles.categoryLabel, { color: "#6366F1" }]}>Campus-wide</Text>
+          </View>
+        )}
       </View>
 
       {/* Title */}
@@ -250,33 +263,48 @@ function AnnouncementCard({
   );
 }
 
-// ─── Create modal (teacher only) ─────────────────────────────────────────────
+// ─── Create modal (teacher / admin) ──────────────────────────────────────────
 function CreateModal({ visible, onClose, styles, C }: { visible: boolean; onClose: () => void; styles: StylesType; C: typeof ColorPalette }) {
+  const { user, token } = useAuthStore();
   const { create } = useAnnouncementsStore();
+  const { departments, fetchDepartments } = useAdminStore();
+  const isAdmin = user?.role === "admin";
+
   const [title, setTitle]       = useState("");
   const [body, setBody]         = useState("");
   const [category, setCategory] = useState<AnnouncementCategory>("Notices");
+  const [scope, setScope]       = useState<"campus" | "department">("campus");
+  const [dept, setDept]         = useState("");
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
+  useEffect(() => {
+    if (visible && isAdmin && departments.length === 0 && token) {
+      fetchDepartments(token);
+    }
+  }, [visible]);
+
   function reset() {
-    setTitle(""); setBody(""); setCategory("Notices"); setError(null);
+    setTitle(""); setBody(""); setCategory("Notices"); setScope("campus"); setDept(""); setError(null);
   }
 
-  function handleClose() {
-    reset(); onClose();
-  }
+  function handleClose() { reset(); onClose(); }
 
   async function handleSubmit() {
     if (!title.trim()) { setError("Title is required."); return; }
     if (!body.trim())  { setError("Body is required."); return; }
+    if (isAdmin && scope === "department" && !dept) { setError("Select a department."); return; }
     setError(null);
     setSaving(true);
+    const payload: CreateAnnouncementPayload = {
+      title: title.trim(), body: body.trim(), category,
+      ...(isAdmin ? { scope, ...(scope === "department" ? { department: dept } : {}) } : {}),
+    };
     try {
-      await create({ title: title.trim(), body: body.trim(), category });
+      await create(payload);
       handleClose();
-    } catch (err: any) {
-      setError(err.message ?? "Failed to post announcement.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to post announcement.");
     } finally {
       setSaving(false);
     }
@@ -305,6 +333,47 @@ function CreateModal({ visible, onClose, styles, C }: { visible: boolean; onClos
           </View>
 
           <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+            {/* Scope — admin only */}
+            {isAdmin && (
+              <>
+                <Text style={styles.fieldLabel}>Audience</Text>
+                <View style={styles.categoryRow}>
+                  {(["campus", "department"] as const).map((s) => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.catChip, scope === s && { backgroundColor: C.primaryLight, borderColor: C.primary }]}
+                      onPress={() => { setScope(s); setDept(""); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.catChipIcon}>{s === "campus" ? "🌐" : "🏛️"}</Text>
+                      <Text style={[styles.catChipText, scope === s && { color: C.primary }]}>
+                        {s === "campus" ? "Campus-wide" : "Department"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {scope === "department" && (
+                  <>
+                    <Text style={[styles.fieldLabel, { marginTop: 12 }]}>Department</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+                      <View style={{ flexDirection: "row", gap: 8, paddingVertical: 2 }}>
+                        {departments.map((d) => (
+                          <TouchableOpacity
+                            key={d._id}
+                            style={[styles.catChip, dept === d.name && { backgroundColor: C.primaryLight, borderColor: C.primary }]}
+                            onPress={() => setDept(d.name)}
+                          >
+                            <Text style={[styles.catChipText, dept === d.name && { color: C.primary }]}>{d.name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </>
+                )}
+              </>
+            )}
+
             {/* Category */}
             <Text style={styles.fieldLabel}>Category</Text>
             <View style={styles.categoryRow}>

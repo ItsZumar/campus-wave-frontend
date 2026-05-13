@@ -52,13 +52,14 @@ export default function EditProfileScreen() {
   const [error, setError]             = useState<string | null>(null);
 
   const isTeacher = user?.role === "teacher";
+  const isAdmin   = user?.role === "admin";
   const avatarUri = pickedImage ?? user?.profileImage ?? null;
 
   const isDirty =
     name.trim() !== (user?.fullName ?? "") ||
-    department !== (user?.department ?? "") ||
-    (!isTeacher && semester !== (user?.semester ?? "")) ||
-    (!isTeacher && section !== (user?.section ?? "")) ||
+    (!isAdmin && department !== (user?.department ?? "")) ||
+    (!isTeacher && !isAdmin && semester !== (user?.semester ?? "")) ||
+    (!isTeacher && !isAdmin && section !== (user?.section ?? "")) ||
     pickedImage !== null;
 
   const pickImage = async () => {
@@ -85,7 +86,12 @@ export default function EditProfileScreen() {
       if (pickedImage) {
         await uploadAvatar(pickedImage);
       }
-      await updateProfile({ fullName: name.trim(), department, semester: isTeacher ? "" : semester, section: isTeacher ? "" : section });
+      await updateProfile({
+        fullName: name.trim(),
+        department: isAdmin ? "" : department,
+        semester:   isAdmin || isTeacher ? "" : semester,
+        section:    isAdmin || isTeacher ? "" : section,
+      });
       router.back();
     } catch (err: any) {
       setError(err.message ?? "Failed to save. Please try again.");
@@ -184,56 +190,58 @@ export default function EditProfileScreen() {
             </View>
           </View>
 
-          {/* Academic */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Academic</Text>
-            <View style={styles.card}>
-              <Field label="Department" styles={styles}>
-                <TouchableOpacity
-                  style={[styles.input, styles.pickerRow]}
-                  onPress={() => setShowDeptPicker(true)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={department ? styles.pickerVal : styles.pickerPlaceholder}>
-                    {department || "Select department"}
-                  </Text>
-                  <Text style={styles.chevron}>⌄</Text>
-                </TouchableOpacity>
-              </Field>
+          {/* Academic — hidden for admin */}
+          {!isAdmin && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Academic</Text>
+              <View style={styles.card}>
+                <Field label="Department" styles={styles}>
+                  <TouchableOpacity
+                    style={[styles.input, styles.pickerRow]}
+                    onPress={() => setShowDeptPicker(true)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={department ? styles.pickerVal : styles.pickerPlaceholder}>
+                      {department || "Select department"}
+                    </Text>
+                    <Text style={styles.chevron}>⌄</Text>
+                  </TouchableOpacity>
+                </Field>
 
-              {!isTeacher && (
-                <>
-                  <CardDivider styles={styles} />
-                  <Field label="Semester & Section" styles={styles}>
-                    <View style={styles.row}>
-                      <TouchableOpacity
-                        style={[styles.input, styles.pickerRow, styles.flex]}
-                        onPress={() => setShowSemPicker(true)}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={semester ? styles.pickerVal : styles.pickerPlaceholder}>
-                          {semester ? `Semester ${semester}` : "Select"}
-                        </Text>
-                        <Text style={styles.chevron}>⌄</Text>
-                      </TouchableOpacity>
-                      <View style={styles.rowGap} />
-                      <TextInput
-                        style={[inputStyle("section"), styles.sectionInput]}
-                        value={section}
-                        onChangeText={(t) => setSection(t.toUpperCase())}
-                        placeholder="A"
-                        placeholderTextColor={C.placeholder}
-                        autoCapitalize="characters"
-                        maxLength={3}
-                        onFocus={() => setFocusedField("section")}
-                        onBlur={() => setFocusedField(null)}
-                      />
-                    </View>
-                  </Field>
-                </>
-              )}
+                {!isTeacher && (
+                  <>
+                    <CardDivider styles={styles} />
+                    <Field label="Semester & Section" styles={styles}>
+                      <View style={styles.row}>
+                        <TouchableOpacity
+                          style={[styles.input, styles.pickerRow, styles.flex]}
+                          onPress={() => setShowSemPicker(true)}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={semester ? styles.pickerVal : styles.pickerPlaceholder}>
+                            {semester ? `Semester ${semester}` : "Select"}
+                          </Text>
+                          <Text style={styles.chevron}>⌄</Text>
+                        </TouchableOpacity>
+                        <View style={styles.rowGap} />
+                        <TextInput
+                          style={[inputStyle("section"), styles.sectionInput]}
+                          value={section}
+                          onChangeText={(t) => setSection(t.toUpperCase())}
+                          placeholder="A"
+                          placeholderTextColor={C.placeholder}
+                          autoCapitalize="characters"
+                          maxLength={3}
+                          onFocus={() => setFocusedField("section")}
+                          onBlur={() => setFocusedField(null)}
+                        />
+                      </View>
+                    </Field>
+                  </>
+                )}
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Account (read-only) */}
           <View style={styles.section}>
@@ -252,28 +260,30 @@ export default function EditProfileScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Department picker */}
-      <PickerModal
-        visible={showDeptPicker}
-        title="Department"
-        options={DEPARTMENTS}
-        selected={department}
-        onSelect={(v) => { setDepartment(v); setShowDeptPicker(false); }}
-        onClose={() => setShowDeptPicker(false)}
-        styles={styles}
-      />
-
-      {/* Semester picker */}
-      <PickerModal
-        visible={showSemPicker}
-        title="Semester"
-        options={SEMESTERS}
-        selected={semester}
-        onSelect={(v) => { setSemester(v); setShowSemPicker(false); }}
-        onClose={() => setShowSemPicker(false)}
-        renderOption={(opt) => `Semester ${opt}`}
-        styles={styles}
-      />
+      {/* Department / Semester pickers — not needed for admin */}
+      {!isAdmin && (
+        <>
+          <PickerModal
+            visible={showDeptPicker}
+            title="Department"
+            options={DEPARTMENTS}
+            selected={department}
+            onSelect={(v) => { setDepartment(v); setShowDeptPicker(false); }}
+            onClose={() => setShowDeptPicker(false)}
+            styles={styles}
+          />
+          <PickerModal
+            visible={showSemPicker}
+            title="Semester"
+            options={SEMESTERS}
+            selected={semester}
+            onSelect={(v) => { setSemester(v); setShowSemPicker(false); }}
+            onClose={() => setShowSemPicker(false)}
+            renderOption={(opt) => `Semester ${opt}`}
+            styles={styles}
+          />
+        </>
+      )}
     </SafeAreaView>
   );
 }

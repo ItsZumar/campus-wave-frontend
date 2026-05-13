@@ -48,3 +48,30 @@ export type Group = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type LeaveRequest = {
+  _id: string;
+  status: "pending" | "approved" | "rejected";
+  adminNote?: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    _id: string;
+    fullName: string;
+    email: string;
+    role: string;
+    department?: string;
+    semester?: string;
+    section?: string;
+    profileImage?: string;
+  };
+  group: {
+    _id: string;
+    name: string;
+    type: string;
+    department?: string;
+    semester?: string;
+    section?: string;
+    autoEnrolled?: boolean;
+  };
+};

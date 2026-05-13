@@ -31,6 +31,7 @@ function RootNavigator() {
       router.replace("/auth/login");
     } else if (user && inAuth) {
       if (!user.coursesSetupDone) router.replace("/onboarding/courses");
+      else if (user.role === "admin") router.replace("/(tabs)/dashboard");
       else router.replace("/(tabs)");
     } else if (user && !inAuth && !inOnboarding && !user.coursesSetupDone) {
       router.replace("/onboarding/courses");
@@ -41,6 +42,8 @@ function RootNavigator() {
     <Stack initialRouteName="auth/signup">
       <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
       <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/forgot-password" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/reset-password" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/courses" options={{ headerShown: false }} />
       <Stack.Screen name="create-group" options={{ headerShown: false }} />
       <Stack.Screen name="new-dm" options={{ headerShown: false }} />
@@ -49,6 +52,12 @@ function RootNavigator() {
       <Stack.Screen name="user-profile/[userId]" options={{ headerShown: false }} />
       <Stack.Screen name="group-members/[groupId]" options={{ headerShown: false }} />
       <Stack.Screen name="shared-media/[groupId]" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/departments"   options={{ headerShown: false }} />
+      <Stack.Screen name="admin/courses"       options={{ headerShown: false }} />
+      <Stack.Screen name="admin/reports"       options={{ headerShown: false }} />
+      <Stack.Screen name="admin/settings"      options={{ headerShown: false }} />
+      <Stack.Screen name="admin/announcements" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications"       options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );

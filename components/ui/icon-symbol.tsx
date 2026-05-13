@@ -24,6 +24,8 @@ const MAPPING = {
   'bell.fill': 'notifications',
   'person.crop.circle.fill': 'account-circle',
   'megaphone.fill': 'campaign',
+  'chart.bar.fill': 'bar-chart',
+  'shield.fill': 'security',
 } as IconMapping;
 
 /**
