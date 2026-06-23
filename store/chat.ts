@@ -8,12 +8,26 @@ export type Attachment = {
   mimeType: string;
 };
 
+export type ReplyPreview = {
+  _id: string;
+  text?: string;
+  sender: { _id: string; fullName: string };
+};
+
+export type GroupInvite = {
+  groupId: string | { _id: string; name: string; type: string };
+  groupName: string;
+  groupType: string;
+};
+
 export type ChatMessage = {
   _id: string;
   text?: string;
   attachment?: Attachment;
+  invite?: GroupInvite;
   sender: { _id: string; fullName: string; profileImage?: string };
   group: string;
+  replyTo?: ReplyPreview;
   createdAt: string;
   updatedAt?: string;
 };
@@ -23,7 +37,7 @@ type ChatState = {
   loading: boolean;
   error: string | null;
   fetchHistory: (groupId: string, token: string) => Promise<void>;
-  uploadAttachment: (uri: string, name: string, mimeType: string, token: string) => Promise<Attachment>;
+  uploadAttachment: (uri: string, name: string, mimeType: string, token: string, groupId?: string) => Promise<Attachment>;
   addMessage: (msg: ChatMessage) => void;
   deleteMessage: (messageId: string) => void;
   editMessage: (messageId: string, text: string, updatedAt: string) => void;
@@ -56,9 +70,10 @@ export const useChatStore = create<ChatState>((set) => ({
     }
   },
 
-  uploadAttachment: async (uri, name, mimeType, token) => {
+  uploadAttachment: async (uri, name, mimeType, token, groupId) => {
     const formData = new FormData();
     formData.append("file", { uri, type: mimeType, name } as any);
+    if (groupId) formData.append("groupId", groupId);
     let res: Response;
     try {
       res = await fetch(`${BASE_URL}/messages/upload`, {
@@ -75,7 +90,11 @@ export const useChatStore = create<ChatState>((set) => ({
   },
 
   addMessage: (msg) =>
-    set((state) => ({ messages: [...state.messages, msg] })),
+    set((state) =>
+      state.messages.some((m) => m._id === msg._id)
+        ? state
+        : { messages: [...state.messages, msg] }
+    ),
 
   deleteMessage: (messageId) =>
     set((state) => ({

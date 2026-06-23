@@ -1,8 +1,9 @@
 import { useAuthStore } from "@/store/auth";
 import { type Course, useCoursesStore } from "@/store/courses";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,13 +17,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function CourseSelectionScreen() {
   const { user, token, markSetupDone } = useAuthStore();
   const { courses, loading, error, fetchCourses, enrollBulk } = useCoursesStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const isTeacher = user?.role === "teacher";
+
   useEffect(() => {
-    if (token && user?.department && user?.semester) {
-      fetchCourses(token, user.department, user.semester);
+    if (token && user?.department) {
+      fetchCourses(token, user.department, user.semester || undefined);
     }
   }, [token]);
 
@@ -47,13 +53,45 @@ export default function CourseSelectionScreen() {
     }
   };
 
+  if (isTeacher) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome, Teacher!</Text>
+          <Text style={styles.subtitle}>Your courses will be assigned by an admin.</Text>
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.stateEmoji}>📋</Text>
+          <Text style={styles.emptyTitle}>Courses Assigned by Admin</Text>
+          <Text style={styles.emptySubtitle}>
+            An admin will assign your department and courses. You can start using the app right now.
+          </Text>
+        </View>
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.confirmBtn}
+            onPress={() => handleConfirm(true)}
+            disabled={saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.confirmText}>Continue to App</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Pick Your Courses</Text>
         <Text style={styles.subtitle}>
-          {user?.department} · Semester {user?.semester}
+          {user?.department}{!isTeacher && user?.semester ? ` · Semester ${user.semester}` : ""}
         </Text>
       </View>
 
@@ -61,7 +99,9 @@ export default function CourseSelectionScreen() {
       <View style={styles.banner}>
         <Text style={styles.bannerIcon}>✦</Text>
         <Text style={styles.bannerText}>
-          Select the courses you're enrolled in this semester. You'll be added to their group chats.
+          {isTeacher
+            ? "Select the courses you teach. You'll be added to their group chats."
+            : "Select the courses you're enrolled in this semester. You'll be added to their group chats."}
         </Text>
       </View>
 
@@ -104,6 +144,7 @@ export default function CourseSelectionScreen() {
               course={item}
               checked={selected.has(item._id)}
               onToggle={() => toggle(item._id)}
+              styles={styles}
             />
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -150,10 +191,12 @@ export default function CourseSelectionScreen() {
 }
 
 // ─── Course row ───────────────────────────────────────────────────────────────
+type StylesType = ReturnType<typeof makeStyles>;
+
 function CourseRow({
-  course, checked, onToggle,
+  course, checked, onToggle, styles,
 }: {
-  course: Course; checked: boolean; onToggle: () => void;
+  course: Course; checked: boolean; onToggle: () => void; styles: StylesType;
 }) {
   return (
     <TouchableOpacity
@@ -176,7 +219,8 @@ function CourseRow({
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
 
   header: {
@@ -272,4 +316,5 @@ const styles = StyleSheet.create({
   },
   confirmBtnDisabled: { opacity: 0.4, shadowOpacity: 0 },
   confirmText: { color: "#fff", fontSize: 15, fontWeight: "700" },
-});
+  });
+}

@@ -1,12 +1,14 @@
 import { useAuthStore } from "@/store/auth";
 import { useGroupsStore } from "@/store/groups";
 import { BASE_URL, type User } from "@/services/api";
-import { ColorPalette as C } from "@/styles";
+import { useThemeStore } from "@/store/theme";
+import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -35,6 +37,9 @@ function avatarColor(id: string): string {
 export default function NewDMScreen() {
   const { user, token }       = useAuthStore();
   const { findOrCreateDM }    = useGroupsStore();
+  const { isDark } = useThemeStore();
+  const C = isDark ? DarkColorPalette : ColorPalette;
+  const styles = useMemo(() => makeStyles(C), [isDark]);
   const [users, setUsers]     = useState<User[]>([]);
   const [query, setQuery]     = useState("");
   const [loading, setLoading] = useState(true);
@@ -141,9 +146,13 @@ export default function NewDMScreen() {
                 activeOpacity={0.7}
                 disabled={!!opening}
               >
-                <View style={[styles.avatar, { backgroundColor: avatarColor(item._id) }]}>
-                  <Text style={styles.avatarText}>{initials(item.fullName)}</Text>
-                </View>
+                {item.profileImage ? (
+                  <Image source={{ uri: item.profileImage }} style={styles.avatarImage} />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: avatarColor(item._id) }]}>
+                    <Text style={styles.avatarText}>{initials(item.fullName)}</Text>
+                  </View>
+                )}
                 <View style={styles.rowBody}>
                   <Text style={styles.name} numberOfLines={1}>{item.fullName}</Text>
                   <Text style={styles.meta} numberOfLines={1}>
@@ -162,7 +171,8 @@ export default function NewDMScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C: typeof ColorPalette) {
+  return StyleSheet.create({
   safe:    { flex: 1, backgroundColor: C.bg },
 
   header: {
@@ -207,6 +217,7 @@ const styles = StyleSheet.create({
     width: 48, height: 48, borderRadius: 24,
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
+  avatarImage: { width: 48, height: 48, borderRadius: 24, flexShrink: 0 },
   avatarText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   rowBody:    { flex: 1 },
   name:       { fontSize: 15, fontWeight: "600", color: C.textPrimary, marginBottom: 2 },
@@ -215,4 +226,5 @@ const styles = StyleSheet.create({
   center:     { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   emptyEmoji: { fontSize: 40 },
   emptyTitle: { fontSize: 15, fontWeight: "600", color: C.textSecondary },
-});
+  });
+}

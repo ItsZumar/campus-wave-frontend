@@ -27,7 +27,7 @@ export type Group = {
   _id: string;
   name: string;
   description?: string;
-  type: "course" | "department" | "class" | "semester" | "study" | "club" | "announcement" | "dm";
+  type: "course" | "department" | "class" | "study" | "club" | "announcement" | "dm";
   otherUser?: { _id: string; fullName: string; profileImage?: string };
   courseId?: { _id: string; title: string; code: string };
   department?: string;
@@ -40,10 +40,38 @@ export type Group = {
   memberCount?: number;
   lastMessage?: {
     text?: string;
-    attachment?: { name: string };
+    attachment?: { name: string; mimeType?: string };
+    invite?: { groupName: string };
     sender?: { _id: string; fullName: string };
     createdAt: string;
   };
   createdAt: string;
   updatedAt: string;
+};
+
+export type LeaveRequest = {
+  _id: string;
+  status: "pending" | "approved" | "rejected";
+  adminNote?: string;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    _id: string;
+    fullName: string;
+    email: string;
+    role: string;
+    department?: string;
+    semester?: string;
+    section?: string;
+    profileImage?: string;
+  };
+  group: {
+    _id: string;
+    name: string;
+    type: string;
+    department?: string;
+    semester?: string;
+    section?: string;
+    autoEnrolled?: boolean;
+  };
 };

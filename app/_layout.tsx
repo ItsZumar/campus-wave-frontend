@@ -6,6 +6,7 @@ import "react-native-reanimated";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useAuthStore } from "@/store/auth";
+import { useThemeStore } from "@/store/theme";
 
 export const unstable_settings = {
   initialRouteName: "auth/signup",
@@ -13,11 +14,13 @@ export const unstable_settings = {
 
 function RootNavigator() {
   const { user, loading, hydrate } = useAuthStore();
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     hydrate();
+    hydrateTheme();
   }, []);
 
   useEffect(() => {
@@ -28,6 +31,7 @@ function RootNavigator() {
       router.replace("/auth/login");
     } else if (user && inAuth) {
       if (!user.coursesSetupDone) router.replace("/onboarding/courses");
+      else if (user.role === "admin") router.replace("/(tabs)/dashboard");
       else router.replace("/(tabs)");
     } else if (user && !inAuth && !inOnboarding && !user.coursesSetupDone) {
       router.replace("/onboarding/courses");
@@ -38,12 +42,22 @@ function RootNavigator() {
     <Stack initialRouteName="auth/signup">
       <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
       <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/forgot-password" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/reset-password" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/courses" options={{ headerShown: false }} />
-      <Stack.Screen name="announcements" options={{ headerShown: false }} />
       <Stack.Screen name="create-group" options={{ headerShown: false }} />
       <Stack.Screen name="new-dm" options={{ headerShown: false }} />
       <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="user-profile/[userId]" options={{ headerShown: false }} />
+      <Stack.Screen name="group-members/[groupId]" options={{ headerShown: false }} />
+      <Stack.Screen name="shared-media/[groupId]" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/departments"   options={{ headerShown: false }} />
+      <Stack.Screen name="admin/courses"       options={{ headerShown: false }} />
+      <Stack.Screen name="admin/reports"       options={{ headerShown: false }} />
+      <Stack.Screen name="admin/settings"      options={{ headerShown: false }} />
+      <Stack.Screen name="admin/announcements" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications"       options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
   );
@@ -51,11 +65,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const { isDark } = useThemeStore();
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <RootNavigator />
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? "light" : "dark"} />
     </ThemeProvider>
   );
 }
