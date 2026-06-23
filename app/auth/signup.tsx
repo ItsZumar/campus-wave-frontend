@@ -1,16 +1,19 @@
+import { AuthBrand } from "@/components/AuthBrand";
 import { AuthButton } from "@/components/AuthButton";
+import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { AuthInput } from "@/components/AuthInput";
+import { AuthNavLink } from "@/components/AuthNavLink";
+import { OptionPickerSheet } from "@/components/OptionPickerSheet";
+import { BASE_URL } from "@/services/api";
 import { useAuthStore } from "@/store/auth";
 import { useThemeStore } from "@/store/theme";
 import { ColorPalette, DarkColorPalette } from "@/styles";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,19 +21,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const DEPARTMENTS = [
-  "Computer Science",
-  "Software Engineering",
-  "Electrical Engineering",
-  "Mechanical Engineering",
-  "Civil Engineering",
-  "Business Administration",
-  "Accounting & Finance",
-  "Mass Communication",
-  "Psychology",
-  "Mathematics",
-];
 
 const SEMESTERS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
@@ -48,10 +38,20 @@ export default function SignupScreen() {
   const [department, setDepartment]   = useState("");
   const [semester, setSemester]       = useState("");
   const [section, setSection]         = useState("");
+  const [departments, setDepartments]       = useState<string[]>([]);
+  const [deptLoading, setDeptLoading]       = useState(true);
   const [showDeptPicker, setShowDeptPicker] = useState(false);
   const [showSemPicker, setShowSemPicker]   = useState(false);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const [loading, setLoading]               = useState(false);
+  const [error, setError]                   = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/departments/public`)
+      .then((r) => r.json())
+      .then((data) => setDepartments(data.departments.map((d: { name: string }) => d.name)))
+      .catch(() => {})
+      .finally(() => setDeptLoading(false));
+  }, []);
 
   const isStudent   = role === "student";
   const isFormValid = fullName.trim() && email.trim() && password.trim() &&
@@ -80,14 +80,7 @@ export default function SignupScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {/* Brand */}
-          <View style={styles.brand}>
-            <View style={styles.logoRing}>
-              <View style={styles.logoInner}>
-                <Text style={styles.logoText}>CW</Text>
-              </View>
-            </View>
-          </View>
+          <AuthBrand />
 
           <Text style={styles.title}>Create your account</Text>
 
@@ -144,9 +137,9 @@ export default function SignupScreen() {
             {/* Department + Semester + Section — students only */}
             {isStudent && <View style={styles.field}>
               <Text style={styles.fieldLabel}>Department</Text>
-              <TouchableOpacity style={styles.pickerInput} onPress={() => setShowDeptPicker(true)} activeOpacity={0.75}>
+              <TouchableOpacity style={styles.pickerInput} onPress={() => setShowDeptPicker(true)} activeOpacity={0.75} disabled={deptLoading}>
                 <Text style={department ? styles.pickerVal : styles.pickerPlaceholder}>
-                  {department || "Select your department"}
+                  {deptLoading ? "Loading departments…" : department || "Select your department"}
                 </Text>
                 <Text style={styles.chevron}>⌄</Text>
               </TouchableOpacity>
@@ -179,12 +172,7 @@ export default function SignupScreen() {
               </View>
             )}
 
-            {error && (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorIcon}>!</Text>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+            {error && <AuthErrorBanner message={error} />}
 
             <AuthButton
               label="Create Account"
@@ -193,27 +181,26 @@ export default function SignupScreen() {
               disabled={!isFormValid}
             />
 
-            <View style={styles.signinRow}>
-              <Text style={styles.signinText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push("/auth/login")} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
-                <Text style={styles.signinLink}>Sign in</Text>
-              </TouchableOpacity>
-            </View>
+            <AuthNavLink
+              text="Already have an account? "
+              linkLabel="Sign in"
+              onPress={() => router.push("/auth/login")}
+            />
 
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Pickers */}
-      <PickerModal
+      <OptionPickerSheet
         visible={showDeptPicker}
         title="Department"
-        options={DEPARTMENTS}
+        options={departments}
         selected={department}
         onSelect={(v) => { setDepartment(v); setShowDeptPicker(false); }}
         onClose={() => setShowDeptPicker(false)}
       />
-      <PickerModal
+      <OptionPickerSheet
         visible={showSemPicker}
         title="Semester"
         options={SEMESTERS}
@@ -239,79 +226,12 @@ export default function SignupScreen() {
   );
 }
 
-// ─── Picker modal ─────────────────────────────────────────────────────────────
-type PickerModalProps = {
-  visible: boolean;
-  title: string;
-  options: string[];
-  selected: string;
-  onSelect: (v: string) => void;
-  onClose: () => void;
-  renderOption?: (opt: string) => string;
-};
-
-function PickerModal({ visible, title, options, selected, onSelect, onClose, renderOption }: PickerModalProps) {
-  const { isDark } = useThemeStore();
-  const C = isDark ? DarkColorPalette : ColorPalette;
-  const styles = useMemo(() => makePickerStyles(C), [isDark]);
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{title}</Text>
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.sheetScroll}>
-            {options.map((opt) => {
-              const active = selected === opt;
-              return (
-                <TouchableOpacity
-                  key={opt}
-                  style={[styles.option, active && styles.optionActive]}
-                  onPress={() => onSelect(opt)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
-                    {renderOption ? renderOption(opt) : opt}
-                  </Text>
-                  {active && (
-                    <View style={styles.optionCheck}>
-                      <Text style={styles.optionCheckText}>✓</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 function makeStyles(C: typeof ColorPalette, isDark: boolean) {
   return StyleSheet.create({
     safe:   { flex: 1, backgroundColor: C.bg },
     flex:   { flex: 1 },
     scroll: { paddingHorizontal: 20, paddingBottom: 48 },
-
-    brand: { alignItems: "center", paddingTop: 36 },
-    logoRing: {
-      width: 72, height: 72, borderRadius: 36,
-      backgroundColor: C.primaryLight,
-      alignItems: "center", justifyContent: "center",
-      marginBottom: 14,
-      shadowColor: C.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.18, shadowRadius: 12, elevation: 6,
-    },
-    logoInner: {
-      width: 56, height: 56, borderRadius: 28,
-      backgroundColor: C.primary,
-      alignItems: "center", justifyContent: "center",
-    },
-    logoText: { fontSize: 20, fontWeight: "800", color: C.white, letterSpacing: 0.5 },
 
     title: { fontSize: 22, fontWeight: "700", color: C.textPrimary, marginBottom: 34, textAlign: "center" },
 
@@ -345,24 +265,6 @@ function makeStyles(C: typeof ColorPalette, isDark: boolean) {
     roleBtnText:      { fontSize: 15, fontWeight: "600", color: C.textSecondary },
     roleBtnTextActive: { color: C.white },
 
-    // Error banner
-    errorBanner: {
-      flexDirection: "row", alignItems: "center", gap: 10,
-      backgroundColor: "#FEF2F2",
-      borderWidth: 1, borderColor: "#FECACA",
-      borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14,
-    },
-    errorIcon: {
-      width: 20, height: 20, borderRadius: 10,
-      backgroundColor: C.error, color: C.white,
-      fontSize: 13, fontWeight: "800", textAlign: "center", lineHeight: 20,
-    },
-    errorText: { flex: 1, fontSize: 13, color: "#B91C1C", fontWeight: "500" },
-
-    signinRow:  { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 4 },
-    signinText: { fontSize: 14, color: C.textSecondary },
-    signinLink: { fontSize: 14, fontWeight: "700", color: C.primary },
-
     // Loading overlay
     overlay: {
       ...StyleSheet.absoluteFillObject,
@@ -384,34 +286,5 @@ function makeStyles(C: typeof ColorPalette, isDark: boolean) {
     },
     overlayTitle:    { fontSize: 17, fontWeight: "700", color: C.textPrimary },
     overlaySubtitle: { fontSize: 13, color: C.textSecondary },
-  });
-}
-
-function makePickerStyles(C: typeof ColorPalette) {
-  return StyleSheet.create({
-    backdrop: { flex: 1, backgroundColor: "rgba(10,8,30,0.45)", justifyContent: "flex-end" },
-    sheet: {
-      backgroundColor: C.card,
-      borderTopLeftRadius: 28, borderTopRightRadius: 28,
-      paddingHorizontal: 20, paddingBottom: 36, maxHeight: "72%",
-    },
-    handle: {
-      width: 36, height: 4, backgroundColor: C.border,
-      borderRadius: 2, alignSelf: "center", marginTop: 12, marginBottom: 20,
-    },
-    sheetTitle:  { fontSize: 18, fontWeight: "700", color: C.textPrimary, marginBottom: 8 },
-    sheetScroll: { flexGrow: 0 },
-    option: {
-      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-      paddingVertical: 15, paddingHorizontal: 14, borderRadius: 12, marginBottom: 2,
-    },
-    optionActive:      { backgroundColor: C.primaryLight },
-    optionText:        { fontSize: 15, color: C.textPrimary },
-    optionTextActive:  { color: C.primary, fontWeight: "600" },
-    optionCheck: {
-      width: 22, height: 22, borderRadius: 11,
-      backgroundColor: C.primary, alignItems: "center", justifyContent: "center",
-    },
-    optionCheckText: { fontSize: 12, color: C.white, fontWeight: "700" },
   });
 }
